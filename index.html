@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Store Management System</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f7;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        input, button {
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+
+        button {
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #4cae4c;
+        }
+
+        .medicine-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f5f5f5;
+            padding: 15px;
+            margin: 8px 0;
+            border-radius: 10px;
+            border-left: 6px solid #5cb85c;
+        }
+
+        .delete-btn, .edit-btn {
+            background-color: #d9534f;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .edit-btn {
+            background-color: #f0ad4e;
+        }
+
+        .delete-btn:hover {
+            background-color: #c9302c;
+        }
+
+        .edit-btn:hover {
+            background-color: #ec971f;
+        }
+
+        .reminder {
+            color: #d9534f;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .popup {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ffcccc;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #ff6666;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        #search-input {
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+
+        /* Responsive Styles */
+        @media screen and (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px;
+                border-radius: 15px;
+            }
+
+            h1 {
+                font-size: 1.6rem;
+            }
+
+            input, button {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+
+            .medicine-list li {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .delete-btn {
+                padding: 6px 10px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            h1 {
+                font-size: 1.4rem;
+            }
+
+            input, button {
+                padding: 8px;
+                font-size: 0.85rem;
+            }
+
+            .popup {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Medical Store Management</h1>
+        <form id="medicine-form">
+            <input type="text" id="medicine-name" placeholder="Medicine Name" required>
+            <input type="date" id="expiry-date" required>
+            <button type="submit">Add Medicine</button>
+        </form>
+        <input type="text" id="search-input" placeholder="Search Medicine..." onkeyup="searchMedicine()">
+        <ul id="medicine-list" class="medicine-list"></ul>
+        <div id="reminder-container"></div>
+    </div>
+    <div id="popup" class="popup"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('medicine-form');
+            const medicineList = document.getElementById('medicine-list');
+            const reminderContainer = document.getElementById('reminder-container');
+            const popup = document.getElementById('popup');
+
+            let medicines = JSON.parse(localStorage.getItem('medicines')) || [];
+            let editIndex = null; // Variable to track which medicine is being edited
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('medicine-name').value;
+                const expiryDate = document.getElementById('expiry-date').value;
+
+                if (editIndex !== null) { // If we are editing an existing medicine
+                    medicines[editIndex] = { name, expiryDate };
+                    editIndex = null; // Reset the index after editing
+                } else { // Otherwise, add a new medicine
+                    const newMedicine = { name, expiryDate };
+                    medicines.push(newMedicine);
+                }
+                localStorage.setItem('medicines', JSON.stringify(medicines));
+                form.reset();
+                displayMedicines();
+                checkReminders();
+            });
+
+            function displayMedicines(filteredMedicines = medicines) {
+                medicineList.innerHTML = '';
+                filteredMedicines.forEach((medicine, index) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `${medicine.name} - Expiry: ${medicine.expiryDate} 
+                        <button class="edit-btn" onclick="editMedicine(${index})">Edit</button>
+                        <button class="delete-btn" onclick="deleteMedicine(${index})">Delete</button>`;
+                    medicineList.appendChild(li);
+                });
+            }
+
+            window.deleteMedicine = function(index) {
+                medicines.splice(index, 1);
+                localStorage.setItem('medicines', JSON.stringify(medicines));
+                displayMedicines();
+                checkReminders();
+            }
+
+            window.editMedicine = function(index) {
+                const medicine = medicines[index];
+                document.getElementById('medicine-name').value = medicine.name;
+                document.getElementById('expiry-date').value = medicine.expiryDate;
+                editIndex = index; // Set the index of the medicine to be edited
+            }
+
+            window.searchMedicine = function() {
+                const searchInput = document.getElementById('search-input').value.toLowerCase();
+                const filteredMedicines = medicines.filter(medicine => 
+                    medicine.name.toLowerCase().includes(searchInput)
+                );
+                displayMedicines(filteredMedicines);
+            }
+
+            function checkReminders() {
+                const today = new Date();
+                const twoMonthsLater = new Date();
+                twoMonthsLater.setMonth(today.getMonth() + 2);
+
+                reminderContainer.innerHTML = '';
+                const expiringSoon = medicines.filter(medicine => {
+                    const expiryDate = new Date(medicine.expiryDate);
+                    return expiryDate <= twoMonthsLater && expiryDate >= today;
+                });
+
+                expiringSoon.forEach((medicine, index) => {
+                    const reminder = document.createElement('div');
+                    reminder.classList.add('reminder');
+                    reminder.textContent = `Reminder: ${medicine.name} expires on ${medicine.expiryDate}!`;
+                    reminderContainer.appendChild(reminder);
+
+                    setTimeout(() => showPopup(`${medicine.name} expires on ${medicine.expiryDate}!`), index * 4000);
+                });
+            }
+
+            function showPopup(message) {
+                popup.textContent = message;
+                popup.style.display = 'block';
+                setTimeout(() => {
+                    popup.style.display = 'none';
+                }, 3500);
+            }
+
+            displayMedicines();
+            checkReminders();
+        });
+    </script>
+</body>
+</html>
